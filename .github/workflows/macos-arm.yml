@@ -38,6 +38,9 @@ on:
         required: true
         default: YYYYMMDDHHMM
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
