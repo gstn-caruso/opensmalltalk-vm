@@ -61,12 +61,13 @@ VectorEngine.
 |-----|------|-------|
 | `platforms/Cross` | shared cross-platform VM core + plugins (used by ALL builds) | KEEP |
 | `platforms/iOS/vm/OSX`, `.../Common`, `platforms/iOS/plugins` | **macOS** VM sources (mac shares the iOS tree) | KEEP |
-| `platforms/iOS/vm/iPhone` | iOS device-only code | removable |
+| `platforms/iOS/vm/iPhone` | iOS device-only code | removed (mac build proven not to use it — its only refs are in `#else` branches of `#ifdef BUILD_FOR_OSX`, and `iPhone/` is not on the mac include path) |
 | `platforms/unix` | Linux build (configure + vm sources) | KEEP |
+| `platforms/unix/npsqueak` | Netscape browser plugin (NPAPI) | removed (built `--without-npsqueak`; `configure.ac` forces it off on Darwin) |
 | `platforms/win32` | Windows build (MinGW makefiles + vm sources) | KEEP |
 | `platforms/Plan9` | Plan 9 OS port (legacy `mkfile` build) | removed |
 | `platforms/RiscOS` | RISC OS port (legacy) | removed |
-| `platforms/minheadless` | cmake-based headless build template | removed (verify) |
+| `platforms/minheadless` | cmake-based headless build template | removed (confirmed — see §8) |
 
 ## 4. Dropped build targets (`building/`)
 
@@ -75,12 +76,22 @@ Removed: `linux32`, `linux32ARMv6`, `linux32ARMv7`, `linux32x86`, `linux64`,
 `linux64riscv`, `macos32x86`, `macos64x64` (Intel mac — not used),
 `win32x86`, `win64ARMv8`, `sunos32x86`, `sunos64x64`, `minheadless.cmake`.
 Inside each kept target, removed: `squeak.sista.spur`, `squeak.stack.spur`,
-`bochsx64`, `bochsx86`, `gdbarm32`, `gdbarm64`, `makesista`.
+`bochsx64`, `bochsx86`, `gdbarm32`, `gdbarm64`, `makesista`. (The
+`squeak.sista.spur`/`squeak.stack.spur` dirs survived in `linux64x64` and
+`win64x64` and were removed later, along with the orphaned `scripts/mksistaarchives`
+release script — which already pointed at long-deleted `macos32x86`/`win32x86`
+build dirs. CI only ever builds `squeak.cog.spur`. The `makespur`/`makeproduct`
+mac helpers still list other flavor names but guard each with `test -d`, so the
+missing dirs are simply skipped.)
 
 ## 5. Deprecated VM flavors (already dropped upstream, Aug 2025)
 
 - **Pharo VM** — last sources at git tag `last-support-pharo`.
-- **Newspeak VM** — last sources at git tag `last-support-newspeak`.
+- **Newspeak VM** — last sources at git tag `last-support-newspeak`. The
+  standalone `deploy/packaging/NewspeakInstallers/` tree was removed. Remaining
+  `newspeak` mentions in the codebase are `#if NewspeakVM` conditional blocks
+  inside shared/generated sources (never compiled for the Squeak Cog Spur VM)
+  and are left untouched.
 
 ## 6. Branches (consolidating to a single `main`)
 
@@ -114,9 +125,17 @@ Removed:
 - `scripts/mk*vmarchives`, SVN-era maintenance scripts — release/packaging.
 - `deploy/` — VM packaging/signing wrappers (keep if you still cut releases).
 
-## 8. Build-system note (decide before deleting)
+## 8. Build-system note (resolved)
 
 The active per-platform builds live under `building/<target>/squeak.cog.spur`
-(Makefiles for mac/win; `platforms/unix/config/configure` for Linux). The
-top-level `CMakeLists.txt` + `cmake/` appear to be an alternate/legacy build
-system. Confirm which one you actually use before deleting either.
+(Makefiles for mac/win; `platforms/unix/config/configure` for Linux). CI builds
+**all three** OSes via the `mvm` scripts (see `scripts/ci/actions_build.sh`):
+`build_Linux`/`build_macOS`/`build_Windows` all invoke `./mvm`; Linux first runs
+`make configure` in `platforms/unix/config`. There is **no CMake step anywhere**
+in CI or in the `mvm` scripts.
+
+The former top-level `CMakeLists.txt` + `cmake/` were a parallel build that
+referenced `platforms/minheadless/` in 51 places — but that directory was
+removed (see §3). The CMake build therefore could not compile and was used by
+nothing, so it was **deleted** along with the `- 'CMakeLists.txt'` path-filters
+in the four build workflows. The live build is autotools + `mvm`.
