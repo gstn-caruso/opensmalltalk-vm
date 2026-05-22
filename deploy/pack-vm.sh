@@ -26,6 +26,11 @@ pack_Linux() {
 pack_macOS() {
   readonly ASSET_EXTENSION="dmg"
   readonly APP_PATH="${PRODUCTS_PATH}/${APP_NAME}"
+  # Ad-hoc sign the bundle (and its nested plugins) so it runs on Apple Silicon
+  # without the "app is damaged" hard block. Full Gatekeeper clearance still
+  # needs a Developer ID + notarization; without that, first open may show the
+  # "unidentified developer" prompt (right-click > Open, once).
+  codesign --force --deep --sign - "${APP_PATH}"
   TMP_DMG="temp.${ASSET_EXTENSION}"
   hdiutil create -size 64m -volname "${ASSET_NAME}" -srcfolder "${APP_PATH}" \
       -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW -nospotlight "${TMP_DMG}"
