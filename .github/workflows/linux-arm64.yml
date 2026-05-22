@@ -12,7 +12,6 @@ on:
       - 'building/linux64ARMv8/**' # Makefile-based build scripts
       - 'building/linux64/**' # Makefile-based build scripts
       - '*src/**' # Generated VMMaker sources (incl. plugins)
-      - 'CMakeLists.txt'
       - 'platforms/Cross/**'
       - 'platforms/unix/**'
       # Skip changes in documentation artifacts
@@ -31,7 +30,6 @@ on:
       - 'building/linux64ARMv8/**' # Makefile-based build scripts
       - 'building/linux64/**' # Makefile-based build scripts
       - '*src/**' # Generated VMMaker sources (incl. plugins)
-      - 'CMakeLists.txt'
       - 'platforms/Cross/**'
       - 'platforms/unix/**'
       # Skip changes in documentation artifacts

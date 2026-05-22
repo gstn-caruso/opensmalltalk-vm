@@ -10,7 +10,6 @@ on:
       # Relevant sources for this platform
       - 'building/macos*ARM*/**' # Makefile-based build scripts
       - '*src/**' # Generated VMMaker sources (incl. plugins)
-      - 'CMakeLists.txt'
       - 'platforms/Cross/**'
       - 'platforms/iOS/**' # Note that 'platforms/Mac OS' is deprecated
       # Skip changes in documentation artifacts
@@ -27,7 +26,6 @@ on:
       # Relevant sources for this platform
       - 'building/macos*ARM*/**' # Makefile-based build scripts
       - '*src/**' # Generated VMMaker sources (incl. plugins)
-      - 'CMakeLists.txt'
       - 'platforms/Cross/**'
       - 'platforms/iOS/**' # Note that 'platforms/Mac OS' is deprecated
       # Skip changes in documentation artifacts
