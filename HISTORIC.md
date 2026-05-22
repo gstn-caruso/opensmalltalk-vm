@@ -80,7 +80,9 @@ Inside each kept target, removed: `squeak.sista.spur`, `squeak.stack.spur`,
 `squeak.sista.spur`/`squeak.stack.spur` dirs survived in `linux64x64` and
 `win64x64` and were removed later, along with the orphaned `scripts/mksistaarchives`
 release script — which already pointed at long-deleted `macos32x86`/`win32x86`
-build dirs. CI only ever builds `squeak.cog.spur`. The `makespur`/`makeproduct`
+build dirs. The `bochsx64`/`bochsx86`/`gdbarm32`/`gdbarm64` CPU-simulator build
+dirs also survived in `linux64x64`/`win64x64` and were removed too. CI only ever
+builds `squeak.cog.spur`. The `makespur`/`makeproduct`
 mac helpers still list other flavor names but guard each with `test -d`, so the
 missing dirs are simply skipped.)
 
@@ -115,15 +117,22 @@ upstream remote and from the safety tag/bundle created in Phase 0 of the migrati
 
 ## 7. Developer-only / release infrastructure
 
-KEPT (owner wants to keep VM-regeneration capability):
-- `processors/` (~97 MB) — Bochs x86/x64 + gdb ARM CPU simulators, used to test
-  JIT codegen in the VMMaker simulator. Needed to *regenerate* the VM.
+Originally intended to KEEP (VM-regeneration capability), but **no longer
+present** in the tree — both were removed in later slimming:
+- `processors/` — Bochs x86/x64 + gdb ARM CPU simulators, used to test JIT
+  codegen in the VMMaker simulator.
 - `image/` — shell + `.st` scripts to bootstrap/update a VMMaker Squeak image.
+
+Consequence: this fork can **compile** the VM from the generated C in `src/`,
+but cannot **regenerate** it from Slang. To change the interpreter/JIT you need
+a full VMMaker image from upstream OpenSmalltalk-VM.
 
 Removed:
 - `specs/lowcode.xml` — Sista lowcode config.
-- `scripts/mk*vmarchives`, SVN-era maintenance scripts — release/packaging.
-- `deploy/` — VM packaging/signing wrappers (keep if you still cut releases).
+- `scripts/mk*vmarchives`, SVN-era maintenance scripts — release/packaging
+  (incl. `scripts/mksistaarchives`, removed later — see §4).
+- Travis CI leftovers: `tests/` (smalltalkCI config) and
+  `scripts/ci/travis_test.sh` — the repo now uses GitHub Actions.
 
 ## 8. Build-system note (resolved)
 
