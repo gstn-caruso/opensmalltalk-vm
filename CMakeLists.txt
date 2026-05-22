@@ -21,6 +21,7 @@ option(ALLOW_SDL2 "Enables support for the SDL2 display plugin" OFF)
 option(GENERATE_TOP_LEVEL_RUN_SCRIPT "Generate a top level run script on installation" ON)
 option(MINIMAL_PLUGIN_SET "Build the VM with the minimal number of plugins" OFF)
 option(BUILD_PLUGINS_AS_BUNDLES "Build VM plugins as bundles" OFF)
+option(NATIVE_OPTIMIZATION "Enable aggressive, CPU-specific optimization flags for benchmarking" OFF)
 
 # Check the build type
 if (CMAKE_BUILD_TYPE STREQUAL "")
@@ -85,6 +86,25 @@ else()
 	#	set(COMMON_FLAGS "${COMMON_FLAGS} -falign-loops=16 -falign-jumps=16 -falign-functions=16 -falign-labels=16 -Dsetjmp=_setjmp")
 	#endif()
 	set(OPTIMIZATION_FLAGS "-O2 -fno-omit-frame-pointer -finline-functions ${COMMON_FLAGS}")
+
+	# Native optimization: platform-specific flags for maximum throughput.
+	# Enable with -DNATIVE_OPTIMIZATION=ON. Replaces the Release optimization set.
+	# Do NOT use for cross-compilation; use only when building for the host CPU.
+	if(NATIVE_OPTIMIZATION)
+		if(APPLE AND "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "arm64")
+			# -mcpu=native auto-detects M1/M2/M3/M4
+			set(NATIVE_OPT_FLAGS "-O3 -mcpu=native -fomit-frame-pointer -finline-functions")
+		elseif(UNIX AND "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64")
+			# Keep armv8-a; armv8.1+ triggers a known bug in signalSemaphoreWithIndex
+			set(NATIVE_OPT_FLAGS "-O3 -march=armv8-a -mtune=cortex-a72 -fomit-frame-pointer -finline-functions")
+		elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64")
+			set(NATIVE_OPT_FLAGS "-O3 -march=x86-64-v3 -fomit-frame-pointer -finline-functions")
+		else()
+			set(NATIVE_OPT_FLAGS "-O3 -fomit-frame-pointer -finline-functions")
+		endif()
+		set(OPTIMIZATION_FLAGS "${NATIVE_OPT_FLAGS} ${COMMON_FLAGS}")
+		message(STATUS "NATIVE_OPTIMIZATION enabled: ${OPTIMIZATION_FLAGS}")
+	endif()
 
 	set(CMAKE_C_FLAGS_DEBUG "-g ${COMMON_FLAGS} -DDEBUGVM=1")
 	set(CMAKE_CXX_FLAGS_DEBUG "-g ${COMMON_FLAGS} -DDEBUGVM=1")

@@ -48,6 +48,9 @@ ifeq ($(CONFIGURATION),debug)
 else ifeq ($(CONFIGURATION),assert)
 	APP:=$(APPNAME)Assert.app
 	VM_IDENTIFIER:=$(APPIDENTIFIER)Assert
+else ifeq ($(CONFIGURATION),native)
+	APP:=$(APPNAMEDEF)Native.app
+	VM_IDENTIFIER:=$(APPIDENTIFIER)Native
 else # default CONFIGURATION=product => $(APPNAMEDEF).app
 	APP:=$(APPNAMEDEF).app
 	VM_IDENTIFIER:=$(APPIDENTIFIER)

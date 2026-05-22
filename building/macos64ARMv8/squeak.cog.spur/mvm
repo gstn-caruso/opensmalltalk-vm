@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -e
-# A=all(a,d,f) T=Threaded a=assert d=debug f=fast
-A=;D=;F=;T=
+# A=all(a,d,f,n) T=Threaded a=assert d=debug f=fast n=native
+A=;D=;F=;N=;T=
 if [ $# = 0 ]; then
 	A=1;D=1;F=1
 else
-	while getopts 'ASTadf?' opt "$@"; do
+	while getopts 'ASTadfn?' opt "$@"; do
 		case $opt in
 		A)	A=1;D=1;F=1;;
 		S)	echo -S not yet implemented\; use -A for now 1>&1; exit 1;;
@@ -13,11 +13,12 @@ else
 		a)	A=1;;
 		d)	D=1;;
 		f)	F=1;;
-		*)	echo usage $0 [-A] [-a\ [-d] [-f]; exit 0;;
+		n)	N=1;;
+		*)	echo "usage $0 [-A] [-a] [-d] [-f] [-n]"; exit 0;;
 		esac
 	done
 	if [ "$1" = -- ]; then
-		if [ "$A$D$F" = "" ]; then
+		if [ "$A$D$F$N" = "" ]; then
 			A=1;D=1;F=1
 		fi
 	fi
@@ -34,6 +35,9 @@ if [ -z "$T" ]; then
 	if [ -n "$F" ]; then
 		make $@ 2>&1 | tee LOGF ; test ${PIPESTATUS[0]} -eq 0
 	fi
+	if [ -n "$N" ]; then
+		CONFIGURATION=native make $@ 2>&1 | tee LOGN ; test ${PIPESTATUS[0]} -eq 0
+	fi
 else
 	if [ -n "$D" ]; then
 		make $@ $T debug 2>&1 | tee LOGTD ; test ${PIPESTATUS[0]} -eq 0
@@ -43,5 +47,8 @@ else
 	fi
 	if [ -n "$F" ]; then
 		make $@ $T 2>&1 | tee LOGTF ; test ${PIPESTATUS[0]} -eq 0
+	fi
+	if [ -n "$N" ]; then
+		CONFIGURATION=native make $@ $T 2>&1 | tee LOGTN ; test ${PIPESTATUS[0]} -eq 0
 	fi
 fi

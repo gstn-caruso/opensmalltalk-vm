@@ -11,6 +11,7 @@ on:
       # Relevant sources for this platform
       - 'building/win[36][24]x*/**' # Makefile-based build scripts
       - '*src/**' # Generated VMMaker sources (incl. plugins)
+      - 'CMakeLists.txt'
       - 'platforms/Cross/**'
       - 'platforms/win32/**'
       # Skip changes in documentation artifacts
@@ -28,6 +29,7 @@ on:
       # Relevant sources for this platform
       - 'building/win*/**' # Makefile-based build scripts
       - '*src/**' # Generated VMMaker sources (incl. plugins)
+      - 'CMakeLists.txt'
       - 'platforms/Cross/**'
       - 'platforms/win32/**'
       # Skip changes in documentation artifacts

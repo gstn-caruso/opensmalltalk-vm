@@ -6,6 +6,13 @@ INSTALLDIR=sqcogspur64ARMv8linuxht
 # tpr - add enablementisation of fast bitblt ben avison code
 MACHINE="-march=armv8-a -mtune=cortex-a72"
 OPT="-g -O2 -DNDEBUG -DDEBUGVM=0 -D_GNU_SOURCE -DUSEEVDEV"
+
+# NATIVE_OPT=1: aggressive flags for benchmarking on the host CPU.
+# Keep armv8-a (NOT armv8.1+) to avoid signalSemaphoreWithIndex breakage.
+if [[ "${NATIVE_OPT:-0}" == "1" ]]; then
+    OPT="-O3 -DNDEBUG -DDEBUGVM=0 -D_GNU_SOURCE -DUSEEVDEV -fomit-frame-pointer -finline-functions"
+    INSTALLDIR="${INSTALLDIR}_native"
+fi
 ##OPT="-g -O3  -DMUSL -DNDEBUG -DDEBUGVM=0"
 
 if [ `uname` = "OpenBSD" ]; then
