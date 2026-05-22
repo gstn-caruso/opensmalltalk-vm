@@ -8,13 +8,7 @@ enable_language(ASM-ATT)
 option(ONLY_CONFIG_H "Only generate config.h" OFF)
 
 option(COG_JIT "Cog JIT" ON)
-option(SPUR_OBJECT_MODEL "Spur Object Model (i.e, no V3 image format)" ON)
-option(SISTA_OPTIMIZER "Sista-optimized Cog JIT" OFF)
-option(LOWCODE_EXTENSIONS "Lowcode Extensions" OFF)
-
-option(PHARO_BRANDING "Pharo Branding" OFF)
-option(NEWSPEAK_BRANDING "Newspeak Branding" OFF)
-option(SQUEAK_BRANDING "Squeak Branding" ON)
+option(SPUR_OBJECT_MODEL "Spur object model (Spur64); keep ON — V3 is not supported here" ON)
 
 option(SUPPORT_TRADITIONAL_DISPLAY "Enables building a VM with support for a window." OFF)
 option(ALLOW_SDL2 "Enables support for the SDL2 display plugin" OFF)
@@ -125,74 +119,26 @@ if(NOT VM_MSVC)
 	set(VM_DEPENDENCIES_LIBRARIES m ${VM_DEPENDENCIES_LIBRARIES})
 endif()
 
-# Add a build x86_32 version on x86_64 systems.
-set(IS_64_BITS_BUILD_MACHINE False)
-set(IS_X86_ARCH_MACHINE False)
-if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64")
-	set(IS_64_BITS_BUILD_MACHINE True)
-	# Do not build a 64 bit VM when invoking cmake with a 32 bits visual studio generator.
-	if("${CMAKE_GENERATOR}" MATCHES "Visual Studio")
-		if(NOT CMAKE_CL_64)
-			set(IS_64_BITS_BUILD_MACHINE False)
-		endif()
-	endif()
-elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "i.86")
-	set(IS_X86_BUILD_MACHINE True)
-endif()
-
-if(IS_64_BITS_BUILD_MACHINE)
-	option(BUILD_I386_VERSION "Build x86 32 bits version" OFF)
-    set(OSVM_PLATFORM_X86_64 True)
-else(IS_X86_BUILD_MACHINE)
-	set(OSVM_PLATFORM_X86_32 True)
-endif()
-
-if(OSVM_PLATFORM_X86_64)
-	if(BUILD_I386_VERSION)
-        set(OSVM_PLATFORM_X86_32 True)
-	    set(OSVM_PLATFORM_X86_64 False)
-	else()
-		set(VM_64BITS TRUE)
-		set(VM_TARGET_CPU "x86_64")
-		if(WIN32)
-			set(VM_TARGET_CPU "X64")
-			set(FFI_VARIANT_X64_WIN64 True)
-		else()
-			set(FFI_VARIANT_X64_SYSV True)
-		endif()
-	endif()
-else()
-	set(VM_64BITS False)
-endif()
-
-if(OSVM_PLATFORM_X86_32)
-    if (MSVC)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:SSE2")
-    else()
-        set(CMAKE_ASM-ATT_FLAGS "--32")
-        set(CMAKE_CXX_FLAGS "-m32 -msse2 ${CMAKE_CXX_FLAGS} ")
-        set(CMAKE_C_FLAGS "-m32 -msse2 ${CMAKE_C_FLAGS}")
-    endif()
-    set(FFI_VARIANT_IA32 True)
-    set(VM_TARGET_CPU "i686")
-	if(WIN32)
-		set(VM_TARGET_CPU "IX86")
-	endif()
-endif()
-
+# 64-bit only. Detect x86_64 vs ARM64 for FFI variant selection.
+set(VM_64BITS TRUE)
 set(VM_TARGET "${CMAKE_SYSTEM}")
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64")
+	set(VM_TARGET_CPU "x86_64")
+	if(WIN32)
+		set(VM_TARGET_CPU "X64")
+		set(FFI_VARIANT_X64_WIN64 True)
+	else()
+		set(FFI_VARIANT_X64_SYSV True)
+	endif()
+elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "arm64" OR "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64")
+	set(VM_TARGET_CPU "aarch64")
+else()
+	set(VM_TARGET_CPU "${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
 set(SourceFolderName "src/")
 set(ProductFolderName "")
-
-# Lowcode extended instructions
-if(LOWCODE_EXTENSIONS)
-	add_definitions(-DLowcodeVM=1)
-	set(SourceFolderName "${SourceFolderName}lowcode.vm")
-	set(ProductFolderName "${ProductFolderName}lowcodevm")
-else()
-	set(SourceFolderName "${SourceFolderName}vm")
-endif()
+set(SourceFolderName "${SourceFolderName}vm")
 
 
 if(WIN32)
@@ -214,22 +160,10 @@ elseif(UNIX)
 endif()
 
 
-# 64 bits VM
-if(VM_64BITS)
-	set(SourceFolderName "${SourceFolderName}.64bit")
-	set(ProductFolderName "${ProductFolderName}64")
-else()
-	set(SourceFolderName "${SourceFolderName}.32bit")
-	set(ProductFolderName "${ProductFolderName}32")
-endif()
+set(SourceFolderName "${SourceFolderName}.64bit")
+set(ProductFolderName "${ProductFolderName}64")
 
-
-# What Cogit is active?
-if(SISTA_OPTIMIZER)
-	#add_definitions(SistaVM=1) # not needed because already set in sources
-	set(SourceFolderName "${SourceFolderName}.sista")
-	set(ProductFolderName "sista${ProductFolderName}")
-elseif(COG_JIT)
+if(COG_JIT)
 	set(SourceFolderName "${SourceFolderName}.cog")
 	set(ProductFolderName "cog${ProductFolderName}")
 else()
@@ -237,16 +171,8 @@ else()
 	set(ProductFolderName "stack${ProductFolderName}")
 endif()
 
-
-# Spur object model
-if(SPUR_OBJECT_MODEL)
-	#add_definitions(SpurVM=1) # not needed because already set in sources
-	set(SourceFolderName "${SourceFolderName}.spur")
-	set(ProductFolderName "spur${ProductFolderName}")
-else()
-	set(SourceFolderName "${SourceFolderName}.v3")
-	set(ProductFolderName "v3${ProductFolderName}")	
-endif()
+set(SourceFolderName "${SourceFolderName}.spur")
+set(ProductFolderName "spur${ProductFolderName}")
 
 
 # Add the minheadless suffix
@@ -256,64 +182,16 @@ if(HAVE_SDL2 AND SUPPORT_TRADITIONAL_DISPLAY)
 endif()
 
 
-# VM branding
-if(PHARO_BRANDING)
-	set(PHARO_VM TRUE)
-	set(VM_EXECUTABLE_NAME pharo)
-	set(VM_LIBRARY_NAME PharoVMCore)
-	set(VM_NAME Pharo)
-	set(VM_PLUGINS_ENV_VAR_NAME "PHARO_PLUGINS")
-	set(ProductFolderName "ph${ProductFolderName}")
-	if(DARWIN OR WIN32)
-		set(VM_EXECUTABLE_NAME Pharo)
-	endif()
-elseif(NEWSPEAK_BRANDING)
-	set(NEWSPEAK_VM TRUE)
-	set(VM_EXECUTABLE_NAME newspeak)
-	set(VM_LIBRARY_NAME NewspeakVMCore)
-	set(VM_NAME Newspeak)
-	set(VM_PLUGINS_ENV_VAR_NAME "NEWSPEAK_PLUGINS")
-	set(ProductFolderName "ns${ProductFolderName}")
-	if(DARWIN OR WIN32)
-		set(VM_EXECUTABLE_NAME Newspeak)
-	endif()	
-elseif(SQUEAK_BRANDING)
-	set(SQUEAK_VM TRUE)
-	set(VM_EXECUTABLE_NAME squeak)
-	set(VM_LIBRARY_NAME SqueakVMCore)
-	set(VM_NAME Squeak)
-	set(VM_PLUGINS_ENV_VAR_NAME "SQUEAK_PLUGINS")
-	set(ProductFolderName "sq${ProductFolderName}")
-	if(DARWIN OR WIN32)
-		set(VM_EXECUTABLE_NAME Squeak)
-	endif()
-else()
-	set(PHARO_VM FALSE)
-	set(NEWSPEAK_VM FALSE)
-	set(SQUEAK_VM FALSE)
-	set(VM_EXECUTABLE_NAME osvm)
-	set(VM_LIBRARY_NAME OpenSmalltalkVMCore)
-	set(VM_NAME OpenSmalltalkVM)
-	set(VM_PLUGINS_ENV_VAR_NAME "OPENSMALLTALK_PLUGINS")
-	if(DARWIN OR WIN32)
-		set(VM_EXECUTABLE_NAME OpenSmalltalkVM)
-	endif()
+set(SQUEAK_VM TRUE)
+set(VM_EXECUTABLE_NAME squeak)
+set(VM_LIBRARY_NAME SqueakVMCore)
+set(VM_NAME Squeak)
+set(VM_PLUGINS_ENV_VAR_NAME "SQUEAK_PLUGINS")
+set(ProductFolderName "sq${ProductFolderName}")
+if(DARWIN OR WIN32)
+	set(VM_EXECUTABLE_NAME Squeak)
 endif()
 add_definitions(-DVM_NAME="${VM_NAME}")
-
-if(PHARO_VM)
-	add_definitions(-DPharoVM=1 -DIMMUTABILITY=1)
-elseif(NEWSPEAK_VM)
-	add_definitions(-DNewspeakVM=1)
-elseif(SQUEAK_VM)
-	# Nothing extra to define
-endif()
-
-
-# Cog JIT
-if(COG_JIT)
-	#add_definitions(CogVM=1)
-endif()
 
 add_definitions(-DCOGMTVM=0)
 
@@ -469,17 +347,10 @@ else()
 endif()
 
 # Type sizes
-if(BUILD_I386_VERSION OR OSVM_PLATFORM_X86_32)
-	set(SIZEOF_INT 4)
-	set(SIZEOF_LONG 4)
-	set(SIZEOF_LONG_LONG 8)
-	set(SIZEOF_VOID_P 4)
-else()
-	check_type_size("int" SIZEOF_INT)
-	check_type_size("long" SIZEOF_LONG)
-	check_type_size("long long" SIZEOF_LONG_LONG)
-	check_type_size("void*" SIZEOF_VOID_P)
-endif()
+check_type_size("int" SIZEOF_INT)
+check_type_size("long" SIZEOF_LONG)
+check_type_size("long long" SIZEOF_LONG_LONG)
+check_type_size("void*" SIZEOF_VOID_P)
 
 if(HAVE_LIBDL)
 	set(VM_DEPENDENCIES_LIBRARIES dl ${VM_DEPENDENCIES_LIBRARIES})
@@ -684,11 +555,7 @@ elseif(WIN32)
 		platforms/minheadless/windows
 	)
 
-	if(OSVM_PLATFORM_X86_32)
-		set(SETJMP_IMPL platforms/win32/misc/_setjmp-x86.asm)
-	else()
-		set(SETJMP_IMPL platforms/win32/misc/_setjmp-x64.asm)
-	endif()
+	set(SETJMP_IMPL platforms/win32/misc/_setjmp-x64.asm)
 
 	set(VM_PLATFORM_SOURCES
     	platforms/minheadless/windows/sqWin32Alloc.h
@@ -727,16 +594,7 @@ elseif(WIN32)
 	endif()
 
     set(VM_DEPENDENCIES_LIBRARIES Winmm ${VM_DEPENDENCIES_LIBRARIES})
-    if(OSVM_PLATFORM_X86_32)
-        add_definitions(
-            -DX86
-			-DWIN32=1
-        )
-	elseif(OSVM_PLATFORM_X86_64)
-		add_definitions(
-			-DWIN64=1
-        )
-    endif()
+    add_definitions(-DWIN64=1)
 else()
 	set(VM_PLATFORM_SOURCES
     	platforms/minheadless/generic/sqPlatformSpecific-Generic.h
@@ -819,17 +677,10 @@ if(NOT ONLY_CONFIG_H)
         add_executable(${VM_EXECUTABLE_NAME} WIN32 platforms/minheadless/windows/sqWin32Main.c ${Win32Resource} ${Win32Manifest})
         target_link_libraries(${VM_EXECUTABLE_NAME} ${VM_LIBRARY_NAME})
 	elseif(DARWIN)
-		if(PHARO_VM)
-			file(GLOB VM_ICONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
-				"platforms/iOS/vm/OSX/Pharo*.icns"
-			)
-			set(VM_EXECUTABLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/platforms/iOS/vm/OSX/Pharo-Info.plist")
-		else()
-			file(GLOB VM_ICONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
-				"platforms/iOS/vm/OSX/Squeak*.icns"
-			)
-			set(VM_EXECUTABLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/platforms/iOS/vm/OSX/Squeak-Info.plist")
-		endif()
+		file(GLOB VM_ICONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+			"platforms/iOS/vm/OSX/Squeak*.icns"
+		)
+		set(VM_EXECUTABLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/platforms/iOS/vm/OSX/Squeak-Info.plist")
 		set(VM_RESOURCE_FILES ${VM_ICONS})
 		add_executable(${VM_EXECUTABLE_NAME} MACOSX_BUNDLE
 			platforms/minheadless/mac/sqMain.m

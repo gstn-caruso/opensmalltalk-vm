@@ -91,9 +91,6 @@ jobs:
         env:
           HEARTBEAT: ${{ matrix.heartbeat }}
 
-      - name: Sign VM (not implemented)
-        if: false
-        run: ./deploy/sign-vm.sh
 
       - name: Pack VM
         run: ./deploy/pack-vm.sh

@@ -63,11 +63,6 @@ export_variable() {
     fi
 }
 
-# export COGVREV="$(git describe --tags --always)"
-# export COGVDATE="$(git show -s --format=%cd HEAD)"
-# export COGVURL="$(git config --get remote.origin.url)"
-# export COGVOPTS="-DCOGVREV=\"${COGVREV}\" -DCOGVDATE=\"${COGVDATE// /_}\" -DCOGVURL=\"${COGVURL//\//\\\/}\""
-
 build_Linux() {
     echo '::group::Running "make configure" in platforms/unix/config ...'
     (cd platforms/unix/config/ && make configure)
