@@ -96,9 +96,6 @@ jobs:
         shell: msys2 {0} #bash
         run: ./scripts/ci/actions_build.sh
 
-      - name: Sign VM (not implemented)
-        if: false
-        run: ./deploy/sign-vm.sh
 
       - name: Pack VM
         shell: bash
