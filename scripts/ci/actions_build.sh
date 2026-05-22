@@ -80,6 +80,8 @@ build_Linux() {
     elif [[ "${MODE}" == "assert" ]]; then
         BUILD_PATH="${BUILD_PATH}.assert"
         PRODUCTS_PATH="${PRODUCTS_PATH}/assert"
+    elif [[ "${MODE}" == "native" ]]; then
+        export NATIVE_OPT=1
     fi
 
     if [[ ! -z "$HEARTBEAT" ]] && [[ "${HEARTBEAT}" != "threaded" ]]; then
@@ -110,6 +112,8 @@ build_macOS() {
         bash -e ./mvm -d || exit 1
     elif [[ "${MODE}" == "assert" ]]; then
         bash -e ./mvm -a || exit 1
+    elif [[ "${MODE}" == "native" ]]; then
+        bash -e ./mvm -n || exit 1
     else
         bash -e ./mvm -f || exit 1
     fi
@@ -166,6 +170,8 @@ if [[ "${MODE}" == "debug" ]]; then
     ASSET_NAME="${ASSET_NAME}_debug"
 elif [[ "${MODE}" == "assert" ]]; then
     ASSET_NAME="${ASSET_NAME}_assert"
+elif [[ "${MODE}" == "native" ]]; then
+    ASSET_NAME="${ASSET_NAME}_native"
 fi
 
 export_variable "ASSET_REVISION" "${ASSET_REVISION}"

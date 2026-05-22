@@ -120,6 +120,11 @@ DEBUGVM=-DDEBUGVM=1 -DAIO_DEBUG
 else ifeq ($(CONFIGURATION),assert)
 OFLAGS:= -g -O1 -fno-omit-frame-pointer
 DEBUGVM=-DDEBUGVM=0
+else ifeq ($(CONFIGURATION),native)
+# Aggressive flags for Apple M-series. Use only for benchmarking on the host CPU.
+# -mcpu=native auto-detects M1/M2/M3/M4. Not for cross-compilation.
+OFLAGS:= -O3 -mcpu=native -fomit-frame-pointer -finline-functions
+DEBUGVM=-DDEBUGVM=0 -DNDEBUG=1
 else # default CONFIGURATION=product
 OFLAGS:= -g -Os
 DEBUGVM=-DDEBUGVM=0 -DNDEBUG=1 # Define NDEBUG for production to exclude asserts

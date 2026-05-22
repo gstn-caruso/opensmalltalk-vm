@@ -5,6 +5,14 @@ INSTALLDIR=sqcogspur64linuxht
 # Some gcc versions create a broken VM using -O2
 OPT="-g -O2 -DNDEBUG -DDEBUGVM=0"
 
+# NATIVE_OPT=1: aggressive flags for benchmarking on the host CPU.
+# x86-64-v3 requires AVX2 (Intel Haswell+ / AMD Zen1+).
+# Check with: grep -m1 'flags' /proc/cpuinfo | grep -q avx2 && echo ok
+if [[ "${NATIVE_OPT:-0}" == "1" ]]; then
+    OPT="-O3 -march=x86-64-v3 -fomit-frame-pointer -finline-functions -DNDEBUG -DDEBUGVM=0"
+    INSTALLDIR="${INSTALLDIR}_native"
+fi
+
 # Prefer clang over gcc if available
 if [ -n "$(command -v clang || true)" ]; then CC=clang; else CC=gcc; fi
 

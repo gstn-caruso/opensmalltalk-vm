@@ -1,0 +1,233 @@
+name: VM Benchmark (standard vs native flags)
+
+# Builds the VM twice (standard -Os/-O2 and native -O3 + CPU-specific flags),
+# downloads a Cuis image, runs the benchmark, and posts a comparison summary.
+#
+# Triggered manually. Image URL can be overridden via workflow_dispatch input.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_url:
+        description: "URL of a .zip containing a Cuis/Squeak .image + .changes"
+        required: false
+        default: "https://github.com/Cuis-Smalltalk/Cuis-Smalltalk-Dev/releases/latest/download/CuisImage.zip"
+      image_name:
+        description: "Name of the .image file inside the zip (leave blank to auto-detect)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # macOS ARM64 benchmark (Apple M-series)
+  # -------------------------------------------------------------------------
+  benchmark-macos-arm:
+    runs-on: macos-14
+    env:
+      ARCH: macos64ARMv8
+      FLAVOR: squeak.cog.spur
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: .thirdparty-cache
+          key: thirdparty-cache-${{ env.ARCH }}-${{ env.FLAVOR }}-bench
+
+      # --- Standard build ---
+      - name: Build VM (standard -Os)
+        env:
+          MODE: fast
+        run: |
+          echo "$(cat platforms/Cross/vm/sqSCCSVersion.h | .git_filters/RevDateURL.smudge)" > platforms/Cross/vm/sqSCCSVersion.h
+          echo "$(cat platforms/Cross/plugins/sqPluginsSCCSVersion.h | .git_filters/RevDateURL.smudge)" > platforms/Cross/plugins/sqPluginsSCCSVersion.h
+          cd building/${ARCH}/${FLAVOR}
+          bash -e ./mvm -f
+          mv SqueakFast.app ../../../products_standard/
+
+      # --- Native build ---
+      - name: Build VM (native -O3 -mcpu=apple-m1)
+        env:
+          MODE: native
+        run: |
+          cd building/${ARCH}/${FLAVOR}
+          bash -e ./mvm -n
+          mv SqueakFastNative.app ../../../products_native/
+
+      # --- Download image ---
+      - name: Download Cuis image
+        run: |
+          mkdir -p bench_image
+          curl -L "${{ github.event.inputs.image_url }}" -o bench_image/image.zip
+          cd bench_image && unzip -o image.zip
+          # Auto-detect or use provided image name
+          IMG="${{ github.event.inputs.image_name }}"
+          if [[ -z "$IMG" ]]; then
+            IMG=$(find . -name "*.image" | head -1)
+          fi
+          echo "IMAGE_PATH=$(pwd)/$IMG" >> $GITHUB_ENV
+
+      # --- Run benchmarks ---
+      - name: Benchmark — standard VM
+        run: |
+          VM_STANDARD="products_standard/SqueakFast.app/Contents/MacOS/Squeak"
+          bash scripts/benchmark.sh "$VM_STANDARD" "$IMAGE_PATH" "standard" | tee bench_standard.txt
+
+      - name: Benchmark — native VM
+        run: |
+          VM_NATIVE="products_native/SqueakFastNative.app/Contents/MacOS/Squeak"
+          bash scripts/benchmark.sh "$VM_NATIVE" "$IMAGE_PATH" "native" | tee bench_native.txt
+
+      # --- Compare and summarize ---
+      - name: Post benchmark summary
+        run: |
+          echo "## VM Benchmark: macOS ARM64 (apple-m1)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Standard flags:** \`-Os\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Native flags:** \`-O3 -mcpu=native -fomit-frame-pointer\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Benchmark | Standard (ms) | Native (ms) | Speedup |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------------|-------------|---------|" >> $GITHUB_STEP_SUMMARY
+
+          python3 - <<'EOF'
+          import re, os
+
+          def parse(path):
+              results = {}
+              with open(path) as f:
+                  for line in f:
+                      m = re.match(r'^(\w+)=(\d+)', line.strip())
+                      if m:
+                          results[m.group(1)] = int(m.group(2))
+              return results
+
+          std = parse('bench_standard.txt')
+          nat = parse('bench_native.txt')
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              for key in std:
+                  sv = std[key]
+                  nv = nat.get(key, 0)
+                  if sv > 0 and nv > 0:
+                      speedup = sv / nv
+                      emoji = "🟢" if speedup >= 1.05 else ("🔴" if speedup < 0.98 else "⚪")
+                      out.write(f"| {key} | {sv} | {nv} | {emoji} {speedup:.2f}x |\n")
+          EOF
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-macos-arm
+          path: |
+            bench_standard.txt
+            bench_native.txt
+
+  # -------------------------------------------------------------------------
+  # Linux x86-64 benchmark
+  # -------------------------------------------------------------------------
+  benchmark-linux-x64:
+    runs-on: ubuntu-latest
+    env:
+      ARCH: linux64x64
+      FLAVOR: squeak.cog.spur
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y build-essential uuid-dev
+
+      - name: Build configure script
+        run: cd platforms/unix/config && make configure
+
+      # --- Standard build ---
+      - name: Build VM (standard -O2)
+        run: |
+          echo "$(cat platforms/Cross/vm/sqSCCSVersion.h | .git_filters/RevDateURL.smudge)" > platforms/Cross/vm/sqSCCSVersion.h
+          echo "$(cat platforms/Cross/plugins/sqPluginsSCCSVersion.h | .git_filters/RevDateURL.smudge)" > platforms/Cross/plugins/sqPluginsSCCSVersion.h
+          cd building/${ARCH}/${FLAVOR}/build
+          echo n | bash -e ./mvm
+          INSTALLDIR=$(find ../../../../products -maxdepth 1 -type d | tail -1)
+          echo "VM_STANDARD=$INSTALLDIR/bin/squeak" >> $GITHUB_ENV
+
+      # --- Native build ---
+      - name: Build VM (native -O3 -march=x86-64-v3)
+        run: |
+          # Verify AVX2 is available on this runner
+          grep -q avx2 /proc/cpuinfo || { echo "AVX2 not available, skipping native build"; echo "SKIP_NATIVE=1" >> $GITHUB_ENV; exit 0; }
+          cd building/${ARCH}/${FLAVOR}/build
+          echo n | NATIVE_OPT=1 bash -e ./mvm
+          INSTALLDIR=$(find ../../../../products -name "*_native" -maxdepth 1 -type d | tail -1)
+          echo "VM_NATIVE=$INSTALLDIR/bin/squeak" >> $GITHUB_ENV
+
+      - name: Download Cuis image
+        run: |
+          mkdir -p bench_image
+          curl -L "${{ github.event.inputs.image_url }}" -o bench_image/image.zip
+          cd bench_image && unzip -o image.zip
+          IMG="${{ github.event.inputs.image_name }}"
+          if [[ -z "$IMG" ]]; then
+            IMG=$(find . -name "*.image" | head -1)
+          fi
+          echo "IMAGE_PATH=$(pwd)/$IMG" >> $GITHUB_ENV
+
+      - name: Benchmark — standard VM
+        run: bash scripts/benchmark.sh "$VM_STANDARD" "$IMAGE_PATH" "standard" | tee bench_standard.txt
+
+      - name: Benchmark — native VM
+        if: env.SKIP_NATIVE != '1'
+        run: bash scripts/benchmark.sh "$VM_NATIVE" "$IMAGE_PATH" "native" | tee bench_native.txt
+
+      - name: Post benchmark summary
+        run: |
+          echo "## VM Benchmark: Linux x86-64" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Standard flags:** \`-O2 -msse2\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Native flags:** \`-O3 -march=x86-64-v3 -fomit-frame-pointer\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ -f bench_native.txt ]]; then
+            echo "| Benchmark | Standard (ms) | Native (ms) | Speedup |" >> $GITHUB_STEP_SUMMARY
+            echo "|-----------|--------------|-------------|---------|" >> $GITHUB_STEP_SUMMARY
+            python3 - <<'EOF'
+          import re, os
+          def parse(path):
+              results = {}
+              with open(path) as f:
+                  for line in f:
+                      m = re.match(r'^(\w+)=(\d+)', line.strip())
+                      if m:
+                          results[m.group(1)] = int(m.group(2))
+              return results
+          std = parse('bench_standard.txt')
+          nat = parse('bench_native.txt')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              for key in std:
+                  sv = std[key]
+                  nv = nat.get(key, 0)
+                  if sv > 0 and nv > 0:
+                      speedup = sv / nv
+                      emoji = "🟢" if speedup >= 1.05 else ("🔴" if speedup < 0.98 else "⚪")
+                      out.write(f"| {key} | {sv} | {nv} | {emoji} {speedup:.2f}x |\n")
+          EOF
+          else
+            echo "_Native build skipped (AVX2 not available on this runner)_" >> $GITHUB_STEP_SUMMARY
+            echo "Standard results:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            cat bench_standard.txt >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-linux-x64
+          path: |
+            bench_standard.txt
+            bench_native.txt
