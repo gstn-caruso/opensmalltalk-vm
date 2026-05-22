@@ -1,11 +1,18 @@
 # HISTORIC.md — Knowledge preserved before the Cuis-only slimming
 
 This fork of `opensmalltalk-vm` is being narrowed to build **only** the
-production **Cog Spur 64-bit VM** (`squeak.cog.spur`) for **three** platforms:
+production **Cog Spur 64-bit VM** (`squeak.cog.spur`) for **four** targets,
+which are exactly the platforms needed to run Cuis and its CI tests:
 
-- macOS arm64 (`building/macos64ARMv8`)
+- macOS arm64 (`building/macos64ARMv8`) — arm only, NOT universal
+- Linux arm64 (`building/linux64ARMv8`)
 - Linux x86-64 (`building/linux64x64`)
 - Windows x86-64 (`building/win64x64`)
+
+These map to the slots of the Cuis `CuisVM.app` bundle (Contents/MacOS,
+Linux-arm64, Linux-x86_64, Windows-x86_64) consumed by
+github.com/gstn-caruso/Cuis-Smalltalk-Dev. Windows-arm64 and macOS x86_64 are
+intentionally NOT built.
 
 Cuis Smalltalk runs on this standard 64-bit Spur Cog VM. Everything documented
 below is being removed or archived. This file records *what existed and why*, so
@@ -63,10 +70,9 @@ VectorEngine.
 
 ## 4. Dropped build targets (`building/`)
 
-Kept: `macos64ARMv8`, `macos64x64` (Intel — the shipped mac VM is a **universal**
-x86_64+arm64 binary built by lipo-ing both), `linux64x64`, `win64x64`.
+Kept: `macos64ARMv8`, `linux64ARMv8`, `linux64x64`, `win64x64`.
 Removed: `linux32`, `linux32ARMv6`, `linux32ARMv7`, `linux32x86`, `linux64`,
-`linux64ARMv8`, `linux64riscv`, `macos32x86`,
+`linux64riscv`, `macos32x86`, `macos64x64` (Intel mac — not used),
 `win32x86`, `win64ARMv8`, `sunos32x86`, `sunos64x64`, `minheadless.cmake`.
 Inside each kept target, removed: `squeak.sista.spur`, `squeak.stack.spur`,
 `bochsx64`, `bochsx86`, `gdbarm32`, `gdbarm64`, `makesista`.
