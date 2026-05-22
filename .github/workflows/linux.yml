@@ -20,7 +20,7 @@ on:
       - '!**HowToBuild'
   pull_request:
     branches:
-      - Cog
+      - main
     paths:
       # This workflow spec and its support scripts
       - '.github/workflows/linux.yml'
@@ -51,34 +51,12 @@ jobs:
       matrix:
         arch:
           - linux64x64
-          - linux32x86
         flavor:
           - squeak.cog.spur
         heartbeat:
           - threaded
-          - itimer
         mode:
           - fast
-          - debug
-          - assert
-        include:
-          - arch: linux64x64
-            flavor: squeak.sista.spur
-            heartbeat: threaded
-            mode: fast
-          - arch: linux32x86
-            flavor: squeak.sista.spur
-            heartbeat: threaded
-            mode: fast
-          # squeak.stack.spur builds are not prepared for itimer
-          - arch: linux64x64
-            flavor: squeak.stack.spur
-            heartbeat: threaded
-            mode: fast
-          - arch: linux32x86
-            flavor: squeak.stack.spur
-            heartbeat: threaded
-            mode: fast
 
     runs-on: ubuntu-22.04
     name: ${{ matrix.flavor }}${{ matrix.heartbeat == 'itimer' && ' (itimer)' || '' }} for ${{ matrix.arch }}${{ matrix.mode == 'debug' && ' (DEBUG)' || matrix.mode == 'assert' && ' (ASSERT)' || '' }}
@@ -126,7 +104,7 @@ jobs:
 
       - name: Update artifact in latest-build
         uses: ncipollo/release-action@v1
-        if: github.event_name == 'push' && endsWith( github.ref , 'Cog' )
+        if: github.event_name == 'push' && endsWith( github.ref , 'main' )
         with:
           prerelease: true
           allowUpdates: true

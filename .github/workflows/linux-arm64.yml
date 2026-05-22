@@ -19,7 +19,7 @@ on:
       - '!**HowToBuild'
   pull_request:
     branches:
-      - Cog
+      - main
     paths:
       # This workflow spec and its support scripts
       - '.github/workflows/linux-arm64.yml'
@@ -51,12 +51,8 @@ jobs:
           - linux64ARMv8
         flavor:
           - squeak.cog.spur
-          # - squeak.cogmt.spur
-          - squeak.stack.spur
         mode:
           - fast
-          - debug
-          - assert
 
     runs-on: ubuntu-22.04-arm
     name: ${{ matrix.flavor }} for ${{ matrix.arch }}${{ matrix.mode == 'debug' && ' (DEBUG)' || matrix.mode == 'assert' && ' (ASSERT)' || '' }}
@@ -105,7 +101,7 @@ jobs:
 
       - name: Update artifact in latest-release
         uses: ncipollo/release-action@v1
-        if: github.event_name == 'push' && endsWith( github.ref , 'Cog' )
+        if: github.event_name == 'push' && endsWith( github.ref , 'main' )
         with:
           prerelease: true
           allowUpdates: true

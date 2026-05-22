@@ -18,7 +18,7 @@ on:
       - '!**HowToBuild'
   pull_request:
     branches:
-      - Cog
+      - main
     paths:
       # This workflow spec and its support scripts
       - '.github/workflows/win.yml'
@@ -46,17 +46,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: 
+        arch:
           - win64x64
-          - win32x86
         flavor:
           - squeak.cog.spur
-          - squeak.stack.spur
-          - squeak.sista.spur
         mode:
           - fast
-          - debug
-          - assert
 
     runs-on: windows-2025
     name: ${{ matrix.flavor }} for ${{ matrix.arch }}${{ matrix.mode == 'debug' && ' (DEBUG)' || matrix.mode == 'assert' && ' (ASSERT)' || '' }}
@@ -114,7 +109,7 @@ jobs:
 
       - name: Update artifact in latest-build
         uses: ncipollo/release-action@v1
-        if: github.event_name == 'push' && endsWith(github.ref, 'Cog')
+        if: github.event_name == 'push' && endsWith(github.ref, 'main')
         with:
           prerelease: true
           allowUpdates: true

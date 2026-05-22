@@ -1,280 +1,131 @@
-The Cog VM source tree
----------------------
-This is the README for the Cog Git source tree:
-	https://github.com/OpenSmalltalk/opensmalltalk-vm
+# Cuis VM (fork reducido de OpenSmalltalk)
 
-[![Download stable](https://img.shields.io/badge/download-stable-green.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/releases/latest)
-[![Download latestBuild](https://img.shields.io/badge/download-latest%20build-blue.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/releases/tag/latest-build)
-[![Download latestAssertBuild](https://img.shields.io/badge/download-latest%20assert%20build-lightgrey.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/releases/tag/latest-assert-build)
-[![Download latestDebugBuild](https://img.shields.io/badge/download-latest%20debug%20build-lightgrey.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/releases/tag/latest-debug-build)
+Este es un fork **reducido** de [OpenSmalltalk-VM](https://github.com/OpenSmalltalk/opensmalltalk-vm),
+recortado para hacer **una sola cosa bien**: compilar la máquina virtual que
+usa **[Cuis Smalltalk](https://cuis.st)** en las plataformas que realmente
+necesito, y generar artefactos listos para correr los tests de
+[gstn-caruso/Cuis-Smalltalk-Dev](https://github.com/gstn-caruso/Cuis-Smalltalk-Dev).
 
-[![Build for macOS (x86)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/macos.yml/badge.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/macos.yml)
-[![Build for macOS (ARM)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/macos-arm.yml/badge.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/macos-arm.yml)
-[![Build for Windows (x86)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/win.yml/badge.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/win.yml)
-[![Build for Windows (ARM)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/win-arm.yml/badge.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/win-arm.yml)
-[![Build for Linux (x86)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/linux.yml/badge.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/linux.yml)
-[![Build for Linux (ARM)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/linux-arm.yml/badge.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/linux-arm.yml)
-[![Build for Linux (ARMv8)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/linux-arm64.yml/badge.svg)](https://github.com/OpenSmalltalk/opensmalltalk-vm/actions/workflows/linux-arm64.yml)
+El OpenSmalltalk-VM original soporta decenas de variantes de VM y de sistemas
+operativos. Acá se eliminó todo eso. Si necesitás el VM completo, andá al repo
+original. Lo que se removió y por qué está documentado en
+[`HISTORIC.md`](HISTORIC.md).
 
-[![DOI](https://zenodo.org/badge/59481716.svg)](https://zenodo.org/badge/latestdoi/59481716)
+---
 
+## Qué VM compila este repo
 
-Builds are tested automatically on each commit, for Windows, macOS, and Linux.
-Windows and Linux also have 32-bit targets. Squeak and Pharo VMs are built with 
-and without JIT, with and without Spur, and with and without Sista, as available
-per platform. All build artifacts remain accessible for 90 days for each
-workflow run; the latest artifacts are uploaded to a dedicated release tag
-(e.g., "latest-build"), overwritten with each successful run. If you wish to
-commit *without* triggering a build, for example if you were to only edit this 
-documentation, then if you add **[ci skip]** somewhere in your commit message, 
-no workflow run will be started for that commit.
+Una única variante: **`squeak.cog.spur`** — la VM de producción de 64 bits, con:
 
-### Important notice for Developers:
-We rely on source file substitutions in the src tree, specifically,
-any sq*SCCSVersion.h files anywhere in the tree are processed to replace
-`$Rev$`, `$Date$`, and `$URL$` with the current revision (defined as the
-timestamp %Y%m%d%H%M of the latest commit), the human readable date of that
-commit, and the url of the origin repository these sources were cloned from.
+- **Spur**: el formato moderno de objetos en memoria (generation scavenging,
+  forwarding perezoso, mismo header en 32/64 bits).
+- **Cog**: el JIT (`StackToRegisterMappingCogit`) que compila a código máquina
+  los métodos usados más de una vez.
 
-The first time you clone this repository, you *must* therefore run this command:
-```bash
+No es "Cog **o** Spur": es una sola VM que es **Spur + Cog** a la vez. Se
+eliminaron las demás combinaciones (Sista, Stack, v3, lowcode, multi-thread).
+
+## Plataformas (4 targets)
+
+| Slot en `CuisVM.app` | Target de build (`building/`) |
+|----------------------|-------------------------------|
+| `MacOS` (solo arm64) | `macos64ARMv8`                |
+| `Linux-arm64`        | `linux64ARMv8`                |
+| `Linux-x86_64`       | `linux64x64`                  |
+| `Windows-x86_64`     | `win64x64`                    |
+
+No se compila: macOS Intel, Windows arm64, ningún 32 bits, ni RISC-V/SunOS/etc.
+
+## De dónde sale la versión
+
+La versión (ej. `202605220725`, formato `AAAAMMDDHHMM`) se genera a partir de
+git con:
+
+```sh
 ./scripts/updateSCCSVersions
 ```
-This will install filters, post-commit, and post-merge hooks to update the
-sq*SCCSVersion.h files anytime you commit or merge.
 
-For easier use, we include the scripts/gitci and scripts/gitciplugins scripts to
-commit changes to this branch and changes to the Cross and win32 plugins (which
-are shared with the old Squeak interpreter trunk). If you decide not to use
-these scripts for checking in sources, you should also run the
-`updateSCCSVersions` script anytime you decide to use `git-reset` or
-`git-checkout` to make sure the stamps are updated correctly. Failing to do so
-will result in incorrect version stamps in your compiled VMs.
+Ese script escribe `platforms/Cross/vm/sqSCCSVersion.h` (campo
+`SvnRawRevisionString`) e instala hooks de git para mantenerlo al día. **Hay que
+correrlo una vez después de clonar**, o el build se detiene pidiéndolo. El CI usa
+esa misma cadena como nombre de los artefactos (`ASSET_REVISION`).
 
+---
 
-### Contents:
- - Overview
- - Variants
- - VM source directories
- - Platform build directories
- - Other directories (platforms, processors, deployment, image)
+## Compilar localmente
 
+### Requisitos
 
-Overview
---------
-First, opensmalltalk-vm (a.k.a. the Cog VM) is the virtual machine beneath the
-Cuis and Squeak Smalltalk dialects. For issues related to these systems
-that are unrelated to the VM itself, please use their forums:
-* https://cuis.st/community
-* https://squeak.org/community
+- **macOS arm64**: Xcode + clang. Si `ibtool` falla al compilar el `.nib`, corré
+  una vez `sudo xcodebuild -runFirstLaunch`.
+- **Linux**: `gcc`, `make`, y las libs de desarrollo (ver
+  `scripts/ci/actions_prepare_linux_x86.sh` / `_arm.sh`).
+- **Windows**: MSYS2 (`scripts/installMSYS2.cmd`).
 
-*Note that we dropped support for Newspeak and Pharo VM flavors in August 2025.
-The last working sources can be found in the tags
-[last-support-newspeak](https://github.com/OpenSmalltalk/opensmalltalk-vm/tree/last-support-newspeak) and
-[last-support-pharo](https://github.com/OpenSmalltalk/opensmalltalk-vm/tree/last-support-pharo).*
+### Pasos
 
-Second, the core VM, which comprises the execution engine and garbage collector,
-and the core plugins, is developed in Smalltalk, using the *VM Simulator*.  This
-repository contains the code generated by the Simulator, and the platform support
-code for the entire VM, its CI infrastructure and so on.  The core VM **should
-not** be developed by editing the generated code.  The core VM should be
-developed using Smalltalk.  The source code repository for the VM is  
-http://source.squeak.org/VMMaker.html.  
-You can find scripts to build a Smalltalk image in which to do core VM development
-in the [image](https://github.com/OpenSmalltalk/opensmalltalk-vm/tree/Cog/image)
-directory in this repository.  You can read about the Simulator here:
-* https://www.researchgate.net/publication/328509577_Two_Decades_of_Smalltalk_VM_Development_Live_VM_Development_through_Simulation_Tools
+```sh
+# 1. Una sola vez tras clonar: estampar la versión
+./scripts/updateSCCSVersions
 
-Cog is an evolution of the Squeak Back-to-the-future Smalltalk virtual machine
-that provides a number of different Smalltalk virtual machines.  The VMs are
-developed in Smalltalk, using all the dynamic and reflective facilities of the
-Squeak Smalltalk system.  As such, developing in Cog is a delight.  The
-Smalltalk framework comprising the various Cog VMs is translated into C by its
-Slang component to produce VM source that is combined with platform-specific
-support sources and compiled via a C compiler to obtain a fast production VM.
-This directory tree includes the output of Slang for various configurations of
-"Cog VM" along with the associated platform support code, plus build directories that
-can be used to produce production VMs.
-
-This directory tree also includes a directory containing scripts that can be used to
-create an instance of the Smalltalk Cog development system, suitable for developing
-the VM in Smalltalk, and for generating new VM sources. See the image subdirectory,
-described below.
-
-Variants
---------
-The "Cog VM" comes in a bewildering variety of forms.  The first distinction
-is between Stack, Cog and Sista VMs.  Stack VMs are those with context-to-stack
-mapping that optimise message sending by keeping method activations on a stack
-instead of in contexts.  These are pure interpreters but are significantly
-faster than the standard context-based Interpreter VM.  Cog VMs add a JIT to
-the mix, compiling methods used more than once to machine code on the fly.
-Sista VMs, as yet unrealised and in development, add support for adaptive
-optimization that does speculative inlining at the bytecode-to-bytecode level.
-
-Another distinction is between "v3" VMs and Spur VMs.  "v3" is the original
-object representation for Squeak as described in the back-to-the-future paper.
-Spur, as described on the www.mirandabanda.org blog, and in the paper "A partial read barrier for efficient support of live object-oriented programming" by Miranda & Béra, is a faster object
-representation which uses generation scavenging, lazy forwarding for fast
-become, a single object header format common to 32 and 64 bit versions, and a
-segmented heap that can grow and shrink, releasing memory back to the host OS.
-Squeak 5.0, Cuis 5 and Pharo 5 and subsequent releases use Spur.
-
-Another distinction is between normal single-threaded VMs that schedule "green"
-Smalltalk light-weight processes above a single-threaded VM, and multi-threaded
-VMs that share the VM between any number of native threads such that only one
-native thread owns the VM at any one time, switching between threads on FFI
-calls and callbacks or on Smalltalk process switches when Smalltalk processes
-are owned by threads.  This architecture offers non-blocking FFI calls and
-interoperability with multiple native threads, but does /not/ provide true
-concurrency.  This multi-threaded support is as yet experimental.
-
-
-VM source directories
----------------------
-The Slang output of the various VMs are kept in "vm source" directories.  These
-C sources define the core VM (the Smalltalk execution engine and the memory
-manager), and a substantial set of "plugins" that provide interfaces to various
-external facilities via Smalltalk primitive methods.  Each vm source directory
-is specific to a particular VM, be it Squeak Cog Spur, or V3 Stack, etc.
-The plugins can be shared between VMs, choosing the set of plugins to include
-in a VM at build time (see plugins.int & plugins.ext in build directories).
-
-The VM source are in directories such as
-```
-	src/v3.sista		- Smalltalk Sista V3
-	src/spur32.sista	- Smalltalk Sista Spur
-	src/spur32.cog 		- Smalltalk Cog Spur
-	src/spur64.cog 		- Smalltalk Cog Spur 64-bit
-	src/spur32.stack 	- Smalltalk Stack Spur
-	src/spur64.stack 	- Smalltalk Stack Spur 64-bit
-	src/v3.cog			- Smalltalk Cog V3
-	src/v3.stack 		- Smalltalk Stack V3
+# 2. Ir al target de tu plataforma y compilar la VM de producción
+cd building/macos64ARMv8/squeak.cog.spur   # o linux64x64, linux64ARMv8, win64x64
+./mvm -f
 ```
 
-All plugins are in the directory
+En macOS el resultado es `Squeak.app`. En Linux/Windows el ejecutable y sus
+plugins quedan bajo `build/`. Ver `building/<target>/HowToBuild` para detalle.
+
+---
+
+## Estructura del repo
+
 ```
-	src/plugins
+src/spur64.cog/       C generado por VMMaker (la VM). NO se edita a mano.
+src/plugins/          Fuentes C de los plugins.
+building/<target>/    Scripts de build por plataforma (Makefiles / configure).
+platforms/Cross/      Código de VM y plugins común a todas las plataformas.
+platforms/iOS/        Fuentes del VM de macOS (mac comparte el árbol iOS).
+platforms/unix/       Build de Linux.
+platforms/win32/      Build de Windows.
+scripts/ci/           Scripts que usa GitHub Actions.
+deploy/               Empaquetado de la VM.
+.github/workflows/    CI (ver abajo).
+HISTORIC.md           Qué se eliminó del fork original y por qué.
 ```
 
-These contain many, but not all, of the plugins available for the VM.  Others
-can be found in Cog, or in various Monticello packages in various repositories.
+> La VM se escribe en Smalltalk ("Slang") y se transpila a C con VMMaker dentro
+> de una imagen. El C versionado en `src/` es ese resultado. Para *modificar* la
+> VM se necesita el entorno VMMaker, que **no** está incluido en este fork
+> reducido (sí está en el original).
 
-Each vm source directory contains several files, a subset of the following:
-```
-	cogit.c				- the JIT; a Cogit cooperates with a CoInterpreter.
-                          This simply includes a processor-specific JIT file
-	cogitIA32.c et al   - relevant processor-specific JIT, selected by cogit.c
-	cogit.h				- the Cogit's API, as used by the CoInterpreter
-	cogmethod.h			- the structure of a CogMethod, the output of the Cogit
-	cointerp.c			- the CoInterpreter's source file
-	cointerp.h			- the API of the CoInterpreter, as used by the Cogit
-	cointerpmt.c		- the multi-threaded CoInterpreterMT's source file
-	cointerpmt.h		- the API of the CoInterpreterMT, as used by the Cogit
-	gcc3x-cointerp.c	- cointerp.c massaged to interpret faster if using gcc
-	gcc3x-cointerpmt.c	- ditto for cointerpmt.c
-	gcc3x-interp.c		- ditto for interp.c
-	interp.c			- the StackInterpreter's source file
-	interp.h			- defines for the VM configuration, word size, etc
-	vmCallback.h		- the structure of the VM's VMCallbackContext
-```
+---
 
-Platform build directories
---------------------------
-The current "official" build directories are of the form
-building/OS_WordSize_Processor, and include
-```
-	building/linux32x86   - uses autoconf, clang (or gcc), and make
-	building/linux64x64   - uses autoconf, clang (or gcc), and make
-	building/linux64ARMv8 - uses autoconf, clang (or gcc), and make
-	building/macos64x64	  - macOS on Intel using clang and gmake (via XCode)
-	building/macos64ARMv8 - macOS on ARM using clang and gmake (via XCode)
-	building/win32x86     - uses msys2, clang, and make; supports Visual Studio Native Tools Command Prompt
-	building/win64x64     - uses msys2, clang, and make; supports Visual Studio Native Tools Command Prompt
-	building/win64ARMv8   - uses msys2, clang, and make; supports Visual Studio Native Tools Command Prompt
-```
-More can be added as required.  In each there is a HowToBuild that describes
-the necessary steps to compile a VM.
+## Integración continua (GitHub Actions)
 
-Within each building/OS_WordSize_Processor directory are a set of build directories
-for specific configurations of Cog, and for support code and makefiles.  For
-example, there exist
-```
-	building/macos64x64/squeak.cog.spur   - A Cog JIT VM with Squeak branding,
-                                         using the Spur memory manager.
-	building/macos64x64/squeak.stack.spur - A Stack interpreter VM with Squeak
-                                         branding, and the Spur memory manager.
-	building/win32x86/squeak.cog.v3     - A Cog JIT VM with Squeak branding,
-                                         using the old Squeak memory manager.
-```
-    etc.
+Una sola rama: **`main`**.
 
-There exist
-```
-    building/macos64x64/bochsx86 - Support libraries for the BochsIA32Plugin which
-                                is used to develop Cog itself.
-    building/macos64x64/bochsx64 - Support libraries for the BochsX64Plugin which
-                                is used to develop Cog itself.
-    building/macos64x64/gdbarm32 - Support libraries for the GdbARMPlugin which
-                                is used to develop Cog itself.
-    building/macos64x64/gdbarm64 - Support libraries for the GdbARMv8Plugin which
-                                is used to develop Cog itself.
-```
-and the intention is to add such directories to contain e.g. support code for
-the Pharo Cairo and Freetype plugins, and anything else needed.  By placing
-support directories in each build directory they can be shared between various
-branded VM builds, avoiding duplication.
+- **En cada Pull Request a `main`** corren los 4 workflows de build como
+  *chequeos*: si las 4 plataformas compilan `squeak.cog.spur`, el check pasa.
+  - `.github/workflows/macos-arm.yml` — macOS arm64
+  - `.github/workflows/linux.yml` — Linux x86-64
+  - `.github/workflows/linux-arm64.yml` — Linux arm64
+  - `.github/workflows/win.yml` — Windows x86-64
 
-There exist
-```
-	building/macos32x86/common - Gnu Makefiles for building the various branded VMs
-	building/macos64x64/common - Gnu Makefiles for building the various branded VMs
-	building/win32x86/common   - Gnu Makefiles for building the various branded VMs
-	building/win64x64/common   - Gnu Makefiles for building the various branded VMs
-```
-And the intention is to add building/linuxNN????/common as soon as possible to
-use Gnu Makefiles to build all VMs on all platforms.
+- **Al mergear/pushear a `main`** se compilan las 4 plataformas y se publican los
+  binarios como release, listos para que `Cuis-Smalltalk-Dev` los consuma
+  ensamblados en un `CuisVM.app` (slots `MacOS`, `Linux-arm64`, `Linux-x86_64`,
+  `Windows-x86_64`).
 
-The scripts directory contains various scripts for validating and checking-in
-generated sources, packaging builds into installable artifacts (tar, msi, zip),
-and so on.  The linux builds and the packaging scripts produce outputs in the
-products directory tree.  The packaging scripts may choose to include Smalltalk
-source files included in the sources directory.
+---
 
+## Respaldo de la historia
 
-Other directories
------------------
-The platforms directory contains the associated platform-specific files that
-combine with the Slang-generated source to produce complete VMs.  The structure
-is
-```
-	platforms/Cross/vm
-	platforms/Cross/plugins
-	platforms/iOS/vm
-	platforms/iOS/plugins
-	platforms/unix/vm*
-	platforms/unix/plugins
-	platforms/win32/vm
-	platforms/win32/plugins
-```
-Each vm directory contains support for the core VM.  Each plugin directory
-contains run-time and build-time support for various plugins.
+Este fork **reinició su historia git** para quedar liviano. La historia
+completa anterior (todas las ramas y tags del fork original) está preservada en
+un *bundle* de git fuera del repo y sigue disponible en el OpenSmalltalk-VM
+original. Ver [`HISTORIC.md`](HISTORIC.md).
 
-The processors directory contains the source for various processor simulators.
-The JIT is developed in Smalltalk by using one of these processor simulators
-to execute the code the JIT produces.  Currently x86 & x86-64 are derived from
-Bochs, and ARMv6/v7 & ARMv8 are derived from gdb.
+## Licencia
 
-Customization of builds may be done in two main ways, by adapting an existing
-build directory, and by using facilities designed to be applied after the fact
-to a preexisting build.  Such facilities live in the top-level deploy directory
-and are documented there; e.g. see deploy/packaging/README.win32.
-
-Finally the image directory contains scripts that will build a "VMMaker" image,
-a Squeak Smalltalk image containing all the packages that comprise the Cog
-system, suitable for developing the VM and for generating (or updating) the
-sources in the vm source directories. There is also a script for generating a
-64-bit Spur image from a 32-bit Spur image, and the VMMaker.oscog package includes
-code for converting Spur images in either direction. Note that JIT development depends on processor simulations which are included under the top-level processors directory, Bochs providing x86 and x86-64, gdb providing ARMv6 and ARMv8. To do JIT development the processor plugins must be built. These will be built automatically if the simulator libraries are built. In several building top-level subdirectory are four directories, bochsx86, bochsx64, gdbarm32 & gdbarm64, which contain the build scripts. To build a VM suitable for full JIT simulation, first build the support code in the building subdirectory for your platform, and then build a squeak.cog.spur VM in the sibling directory.
-
-Enjoy, and give forward.
+MIT, igual que OpenSmalltalk-VM. Ver [`LICENSE`](LICENSE).
