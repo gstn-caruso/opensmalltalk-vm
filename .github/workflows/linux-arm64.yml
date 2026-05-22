@@ -48,7 +48,11 @@ permissions:
   contents: write
 
 jobs:
+  test-image:
+    uses: ./.github/workflows/test-image.yml
+
   build:
+    needs: test-image
     strategy:
       fail-fast: false # let them finish bc. mixed platforms
       matrix:

@@ -1,0 +1,53 @@
+name: Test Cuis Image
+
+on:
+  workflow_call:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  test:
+    name: Cuis test suite (Linux x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: Cuis-Smalltalk-Dev
+
+    steps:
+      - name: Checkout Cuis-Smalltalk-Dev
+        uses: actions/checkout@v4
+        with:
+          repository: gstn-caruso/Cuis-Smalltalk-Dev
+          path: Cuis-Smalltalk-Dev
+          fetch-depth: 1
+
+      - name: Set up VM
+        run: |
+          chmod +x CuisVM.app/Contents/Linux-x86_64/squeak
+          CuisVM.app/Contents/Linux-x86_64/squeak --version
+
+      - name: Apply core updates
+        run: |
+          set -euo pipefail
+          IMAGE_FILE=$(ls CuisImage/ | grep -E 'Cuis[0-9]+\.[0-9]+-[0-9]+\.image' | head -1)
+          [[ -z "$IMAGE_FILE" ]] && { echo "ERROR: no .image found in CuisImage/" >&2; exit 1; }
+          CuisVM.app/Contents/Linux-x86_64/squeak -vm-sound-null -vm-display-null "CuisImage/$IMAGE_FILE" -d "
+            Utilities classPool at: #AuthorName put: 'GitHubActions'.
+            Utilities classPool at: #AuthorInitials put: 'GHA'.
+            ChangeSet installNewUpdates.
+            Smalltalk saveAndQuit.
+          "
+
+      - name: Run test suite
+        run: |
+          set -euo pipefail
+          IMAGE_FILE=$(ls CuisImage/ | grep -E 'Cuis[0-9]+\.[0-9]+-[0-9]+\.image' | head -1)
+          [[ -z "$IMAGE_FILE" ]] && { echo "ERROR: no .image found in CuisImage/" >&2; exit 1; }
+          CuisVM.app/Contents/Linux-x86_64/squeak -vm-sound-null -vm-display-null "CuisImage/$IMAGE_FILE" -s .github/scripts/run-tests.st
